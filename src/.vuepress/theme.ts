@@ -7,13 +7,13 @@ export default hopeTheme({
   hostname: "https://mister-hope.github.io",
 
   author: {
-    name: "Mr.Hope",
-    url: "https://mister-hope.com",
+    name: "Checo",
+    url: "https://home.checo.com",
   },
 
-  logo: "https://theme-hope-assets.vuejs.press/logo.svg",
+  logo: "https://main-pdf2-aspose-app.s3.us-west-2.amazonaws.com/6b5910d7-fdb7-4ce8-a813-1cdbaf658f72/20241106213358.svg?X-Amz-Expires=86400&response-content-disposition=attachment%3B%20filename%3D%2220241106213358.svg%22&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA4XIV7DNDPELHCB2Q%2F20250129%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20250129T032512Z&X-Amz-SignedHeaders=host&X-Amz-Signature=45c9ab742bd73e0860815a502596616ac0643c320cf5550ac80edac5c5509e0e",
 
-  repo: "vuepress-theme-hope/vuepress-theme-hope",
+  repo: "sergioperezcheco/vuepress-blog",
 
   docsDir: "src",
 
@@ -24,7 +24,7 @@ export default hopeTheme({
   sidebar,
 
   // 页脚
-  footer: "默认页脚",
+  footer: "© 2025 Checo's Blog. All rights reserved.",
   displayFooter: true,
 
   // 博客相关
@@ -35,6 +35,7 @@ export default hopeTheme({
       Github: "https://github.com/sergioperezcheco",
       Email: "mailto:fddm025@gmail.com",
       Telegram: "https://t.me/iiiiiikun",
+      Nodeseek: "https://www.nodeseek.com/space/12394",
       /* Baidu: "https://example.com",
       BiliBili: "https://example.com",
       Bitbucket: "https://example.com",

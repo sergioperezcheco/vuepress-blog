@@ -2,7 +2,7 @@
 home: true
 layout: BlogHome
 icon: house
-title: Checo的博客
+title: 博客主页
 heroImage: https://theme-hope-assets.vuejs.press/logo.svg
 heroText: Checo的博客
 heroFullScreen: true
@@ -38,7 +38,7 @@ projects:
     desc: 自定义详细介绍
     link: https://你的自定义链接
 
-footer: 自定义你的页脚文字
+footer: © 2025 Checo's Blog. All rights reserved.
 ---
 
 <!--
