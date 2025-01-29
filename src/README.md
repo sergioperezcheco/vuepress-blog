@@ -3,7 +3,7 @@ home: true
 layout: BlogHome
 icon: house
 title: 博客主页
-heroImage: https://s10.aconvert.com/convert/p3r68-cdx67/ah7w3-rgqk1.svg
+heroImage: https://main-pdf2-aspose-app.s3.us-west-2.amazonaws.com/2c2c169d-2ccc-4960-bcbb-dfc3c0b76562/CHECO_2.svg?X-Amz-Expires=86400&response-content-disposition=attachment%3B%20filename%3D%22CHECO_2.svg%22&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA4XIV7DNDPELHCB2Q%2F20250129%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20250129T151608Z&X-Amz-SignedHeaders=host&X-Amz-Signature=58b8ce51d1d7ddaa97f62f09527e2d7024de5e573f71f4d4a8f942c211e3328e
 heroText: Checo的博客
 heroFullScreen: true
 tagline: 分享技术，记录生活
