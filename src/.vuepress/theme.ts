@@ -29,10 +29,13 @@ export default hopeTheme({
 
   // 博客相关
   blog: {
-    description: "一个前端开发者",
+    description: "云计算/运维/网安/前端/交通/摄影",
     intro: "/intro.html",
     medias: {
-      Baidu: "https://example.com",
+      Github: "https://github.com/sergioperezcheco",
+      Email: "mailto:fddm025@gmail.com",
+      Telegram: "https://t.me/iiiiiikun",
+      /* Baidu: "https://example.com",
       BiliBili: "https://example.com",
       Bitbucket: "https://example.com",
       Dingding: "https://example.com",
@@ -66,7 +69,7 @@ export default hopeTheme({
       VuePressThemeHope: {
         icon: "https://theme-hope-assets.vuejs.press/logo.svg",
         link: "https://theme-hope.vuejs.press",
-      },
+      }, */
     },
   },
 
