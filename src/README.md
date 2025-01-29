@@ -3,7 +3,7 @@ home: true
 layout: BlogHome
 icon: house
 title: 博客主页
-heroImage: https://theme-hope-assets.vuejs.press/logo.svg
+heroImage: https://s10.aconvert.com/convert/p3r68-cdx67/ah7w3-rgqk1.svg
 heroText: Checo的博客
 heroFullScreen: true
 tagline: 分享技术，记录生活
