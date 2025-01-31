@@ -11,8 +11,7 @@ export default hopeTheme({
     url: "https://home.checo.cc",
   },
 
-  logo: "https://main-pdf2-aspose-app.s3.us-west-2.amazonaws.com/6b5910d7-fdb7-4ce8-a813-1cdbaf658f72/20241106213358.svg?X-Amz-Expires=86400&response-content-disposition=attachment%3B%20filename%3D%2220241106213358.svg%22&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA4XIV7DNDPELHCB2Q%2F20250129%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20250129T032512Z&X-Amz-SignedHeaders=host&X-Amz-Signature=45c9ab742bd73e0860815a502596616ac0643c320cf5550ac80edac5c5509e0e",
-
+  logo: "https://picgo.checo.cc/20241106213358.png",
   repo: "sergioperezcheco/vuepress-blog",
 
   docsDir: "src",
