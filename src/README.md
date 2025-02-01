@@ -6,6 +6,7 @@ title: 博客主页
 heroImage: https://picgo.checo.cc/checo2_4.png
 heroText: Checo的博客
 heroFullScreen: true
+bgImage: https://picgo.checo.cc/DSC_3417-已增强-降噪.jpg
 tagline: 分享技术，记录生活
 projects:
   - icon: folder-open

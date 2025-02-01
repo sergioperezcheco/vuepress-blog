@@ -34,7 +34,11 @@ export default hopeTheme({
       Github: "https://github.com/sergioperezcheco",
       Email: "mailto:fddm025@gmail.com",
       Telegram: "https://t.me/iiiiiikun",
-      Nodeseek: "https://www.nodeseek.com/space/12394",
+      /* Nodeseek: "https://www.nodeseek.com/space/12394", */
+      Nodeseek: {
+        icon: "https://www.nodeseek.com/static/image/favicon/android-chrome-192x192.png",
+        link: "https://www.nodeseek.com/space/12394",
+      },
       /* Baidu: "https://example.com",
       BiliBili: "https://example.com",
       Bitbucket: "https://example.com",
