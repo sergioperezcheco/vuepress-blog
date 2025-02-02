@@ -16,6 +16,12 @@ export default sidebar({
       prefix: "posts/",
       children: "structure",
     },
+    {
+      text: "摄影",
+      icon: "camera",
+      prefix: "photos/",
+      children: "structure",
+    },
     /* "intro",
     {
       text: "幻灯片",
