@@ -14,16 +14,16 @@ export default navbar([
         icon: "pen-to-square",
         prefix: "AI/",
         children: [
-          { text: "Deepseek本地部署", icon: "pen-to-square", link: "1" },
-          { text: "苹果2", icon: "pen-to-square", link: "2" },
-          "3",
-          "4",
+          { text: "DeepSeek本地部署", icon: "pen-to-square", link: "1" },
+          { text: "通过硅基流动使用DeepSeek-R1", icon: "pen-to-square", link: "2" },
+          /* "3",
+          "4", */
         ],
       },
       {
-        text: "香蕉",
+        text: "VPS",
         icon: "pen-to-square",
-        prefix: "banana/",
+        prefix: "VPS/",
         children: [
           {
             text: "香蕉 1",
@@ -39,10 +39,11 @@ export default navbar([
           "4",
         ],
       },
-      { text: "樱桃", icon: "pen-to-square", link: "cherry" },
+      /* { text: "樱桃", icon: "pen-to-square", link: "cherry" },
       { text: "火龙果", icon: "pen-to-square", link: "dragonfruit" },
       "tomato",
-      "strawberry",
+      "strawberry", */
+      "begin",
     ],
   },
   {
