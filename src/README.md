@@ -9,35 +9,27 @@ heroFullScreen: true
 bgImage: https://picgo.checo.cc/DSC_3417-已增强-降噪.jpg
 tagline: 分享技术，记录生活
 projects:
-  - icon: folder-open
-    name: 项目名称
-    desc: 项目详细描述
-    link: https://你的项目链接
+  - icon: house
+    name: 个人主页
+    desc: 个人主页
+    link: https://home.checo.cc
 
-  - icon: link
-    name: 链接名称
-    desc: 链接详细描述
-    link: https://链接地址
+  - icon: bed
+    name: 免费图床
+    desc: 基于Telegram的开源图床
+    link: https://img.checo.cc
 
-  - icon: book
-    name: 书籍名称
-    desc: 书籍详细描述
-    link: https://你的书籍链接
+  - icon: star
+    name: 星标文章
+    desc: 博客星标文章
+    link: https://blog.checo.cc/star/
 
-  - icon: newspaper
-    name: 文章名称
-    desc: 文章详细描述
-    link: https://你的文章链接
+  - icon: image
+    name: 随机图片
+    desc: 生成随机图片URL
+    link: https://random.checo.cc
 
-  - icon: user-group
-    name: 伙伴名称
-    desc: 伙伴详细介绍
-    link: https://你的伙伴链接
 
-  - icon: https://theme-hope-assets.vuejs.press/logo.svg
-    name: 自定义项目
-    desc: 自定义详细介绍
-    link: https://你的自定义链接
 
 footer: © 2025 Checo's Blog. All rights reserved.
 ---
@@ -48,4 +40,14 @@ footer: © 2025 Checo's Blog. All rights reserved.
 要使用此布局，你应该在页面前端设置 `layout: BlogHome` 和 `home: true`。
 
 相关配置文档请见 [博客主页](https://theme-hope.vuejs.press/zh/guide/blog/home.html)。
+
+  - icon: user-group
+    name: 伙伴名称
+    desc: 伙伴详细介绍
+    link: https://你的伙伴链接
+
+  - icon: https://theme-hope-assets.vuejs.press/logo.svg
+    name: 自定义项目
+    desc: 自定义详细介绍
+    link: https://你的自定义链接
 -->

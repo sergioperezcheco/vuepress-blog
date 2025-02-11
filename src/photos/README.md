@@ -1,5 +1,5 @@
 ---
-title: 摄影作品
+title: 摄影
 index: false
 icon: camera
 category:

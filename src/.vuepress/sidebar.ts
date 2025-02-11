@@ -22,7 +22,8 @@ export default sidebar({
       prefix: "photos/",
       children: "structure",
     },
-    /* "intro",
+    "intro",
+    /*
     {
       text: "幻灯片",
       icon: "person-chalkboard",
