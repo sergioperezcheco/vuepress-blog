@@ -6,8 +6,8 @@ import sidebar from "./sidebar.js";
 export default hopeTheme({
   hostname: "https://mister-hope.github.io",
 
-  /* 全屏按钮 */
-  /* fullscreen: true, */
+/* 全屏按钮 */
+fullscreen: true,
 
   author: {
     name: "Checo",

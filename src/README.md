@@ -3,10 +3,10 @@ home: true
 layout: BlogHome
 icon: house
 title: 博客主页
-heroImage: https://picgo.checo.cc/checo2_4.png
+heroImage: https://picgo.checo.cc/20241106213358.png
 heroText: Checo的博客
 heroFullScreen: true
-bgImage: https://picgo.checo.cc/DSC_3417-已增强-降噪.jpg
+bgImage: https://picgo.checo.cc/DSC_2017-3.jpg
 tagline: 分享技术，记录生活
 projects:
   - icon: house

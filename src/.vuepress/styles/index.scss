@@ -1,1 +1,49 @@
 // place your custom styles here
+
+// 访问计数器样式 - 与 vuepress-theme-hope 博客侧边栏卡片风格完全统一
+.visitor-counter-wrapper {
+  margin-top: 8px;
+  padding: 8px 16px 16px;
+  background: var(--bg-color, #fff);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+html.dark .visitor-counter-wrapper {
+  background: var(--bg-color-secondary, #252525);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.visitor-counter-wrapper .counter-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color-lighter, #666);
+}
+
+html.dark .visitor-counter-wrapper .counter-header {
+  color: var(--text-color-lighter, #aaa);
+}
+
+.visitor-counter-wrapper .counter-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.visitor-counter-wrapper .counter-body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.visitor-counter-wrapper .counter-body img {
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}

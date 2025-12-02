@@ -39,6 +39,14 @@ export default navbar([
           "2",
         ],
       },
+      {
+        text: "AWS",
+        icon: "pen-to-square",
+        prefix: "AWS/",
+        children: [
+          "1",
+        ],
+      },
       /* { text: "樱桃", icon: "pen-to-square", link: "cherry" },
       { text: "火龙果", icon: "pen-to-square", link: "dragonfruit" },
       "tomato",
