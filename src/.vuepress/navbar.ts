@@ -47,6 +47,14 @@ export default navbar([
           "2",
         ],
       },
+      {
+        text: "Windows",
+        icon: "pen-to-square",
+        prefix: "Windows/",
+        children: [
+          { text: "Kali WSL安装", icon: "pen-to-square", link: "kali-wsl" },
+        ],
+      },
       /* { text: "樱桃", icon: "pen-to-square", link: "cherry" },
       { text: "火龙果", icon: "pen-to-square", link: "dragonfruit" },
       "tomato",
