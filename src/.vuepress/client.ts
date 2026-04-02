@@ -11,6 +11,13 @@ const VisitorCounterInjector = {
 
     const injectCounter = () => {
       nextTick(() => {
+        // 只在首页显示
+        if (route.path !== "/" && route.path !== "/index.html") {
+          const existingCounters = document.querySelectorAll(".visitor-counter-wrapper");
+          existingCounters.forEach((el) => el.remove());
+          return;
+        }
+
         // 移除已存在的计数器（避免重复）
         const existingCounters = document.querySelectorAll(".visitor-counter-wrapper");
         existingCounters.forEach((el) => el.remove());
@@ -26,7 +33,7 @@ const VisitorCounterInjector = {
             </div>
             <div class="counter-body">
               <img 
-                src="https://count.getloli.com/@blog.checo.cc?name=blog.checo.cc&theme=nixietube-1&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" 
+                src="https://count.getloli.com/@blog.checo.cc?name=blog.checo.cc&theme=smooth&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" 
                 alt="访问次数"
                 loading="lazy"
               />
