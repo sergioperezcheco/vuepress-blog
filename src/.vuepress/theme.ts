@@ -14,7 +14,7 @@ fullscreen: true,
     url: "https://home.checo.cc",
   },
 
-  logo: "https://picgo.checo.cc/20241106213358.png",
+  logo: "/logo.png",
   repo: "sergioperezcheco/vuepress-blog",
 
   docsDir: "src",

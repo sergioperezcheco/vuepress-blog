@@ -1,9 +1,9 @@
 ---
 home: true
-layout: BlogHome
+layout: Blog
 icon: house
 title: 博客主页
-heroImage: https://picgo.checo.cc/20241106213358.png
+heroImage: /logo.png
 heroText: Checo的博客
 heroFullScreen: true
 bgImage: https://picgo.checo.cc/DSC_2017-3.jpg
@@ -37,7 +37,7 @@ footer: © 2025 Checo's Blog. All rights reserved.
 <!--
 这是一个博客主页的案例。
 
-要使用此布局，你应该在页面前端设置 `layout: BlogHome` 和 `home: true`。
+要使用此布局，你应该在页面前端设置 `layout: Blog` 和 `home: true`。
 
 相关配置文档请见 [博客主页](https://theme-hope.vuejs.press/zh/guide/blog/home.html)。
 
