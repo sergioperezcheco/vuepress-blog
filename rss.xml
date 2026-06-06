@@ -6,8 +6,8 @@
     <link>https://blog.checo.cc/</link>
     <description>Checo的博客</description>
     <language>zh-CN</language>
-    <pubDate>Sat, 06 Jun 2026 15:24:54 GMT</pubDate>
-    <lastBuildDate>Sat, 06 Jun 2026 15:24:54 GMT</lastBuildDate>
+    <pubDate>Sat, 06 Jun 2026 16:13:01 GMT</pubDate>
+    <lastBuildDate>Sat, 06 Jun 2026 16:13:01 GMT</lastBuildDate>
     <generator>@vuepress/plugin-feed</generator>
     <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
     <category>运维</category>
@@ -1287,11 +1287,12 @@
       <link>https://blog.checo.cc/posts/Mac/1.html</link>
       <guid>https://blog.checo.cc/posts/Mac/1.html</guid>
       <source url="https://blog.checo.cc/rss.xml">Mac mini M4 硬件深度检测指南</source>
-      <description>新 Mac 到手后，我习惯先做一次系统化检测：硬件信息、SSD 健康、接口状态、安全配置、系统稳定性都过一遍。这样后面如果遇到异常，可以知道是机器本身的问题，还是后续使用环境造成的。</description>
+      <description>Mac mini M4 透明俯视内部构造图Mac mini M4 透明俯视内部构造图 新 Mac 到手后，我习惯先做一次系统化检测：硬件信息、SSD 健康、接口状态、安全配置、系统稳定性都过一遍。这样后面如果遇到异常，可以知道是机器本身的问题，还是后续使用环境造成的。</description>
       <category>macOS</category>
       <category>硬件</category>
       <pubDate>Wed, 03 Jun 2026 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
+<figure><img src="/assets/images/posts/mac-mini-m4-cutaway.png" alt="Mac mini M4 透明俯视内部构造图" tabindex="0" loading="lazy"><figcaption>Mac mini M4 透明俯视内部构造图</figcaption></figure>
 <p>新 Mac 到手后，我习惯先做一次系统化检测：硬件信息、SSD 健康、接口状态、安全配置、系统稳定性都过一遍。这样后面如果遇到异常，可以知道是机器本身的问题，还是后续使用环境造成的。</p>
 <!-- more -->
 <p>本文基于 Mac mini M4 的实际检测流程整理，命令主要适用于 Apple Silicon Mac。</p>
@@ -1335,6 +1336,7 @@
 <p>| 指标 | 含义 | 正常参考 |<br>
 |</p>
 ]]></content:encoded>
+      <enclosure url="https://blog.checo.cc/assets/images/posts/mac-mini-m4-cutaway.png" type="image/png"/>
     </item>
     <item>
       <title>macOS 上的 VS Code 为什么会神秘消失？</title>
@@ -1518,11 +1520,12 @@
       <link>https://blog.checo.cc/posts/AWS/1.html</link>
       <guid>https://blog.checo.cc/posts/AWS/1.html</guid>
       <source url="https://blog.checo.cc/rss.xml">Windows Server 2008 CloudWatch Agent 证书验证失败</source>
-      <description>在一台 Windows Server 2008 EC2 实例上，CloudWatch Agent 服务状态正常，但监控指标一直无法上报到 CloudWatch。日志里反复出现 x509: certificate signed by unknown authority，最后定位到旧系统根证书和 TLS 支持不足。</description>
+      <description>CloudWatch Agent 证书链修复架构图CloudWatch Agent 证书链修复架构图 在一台 Windows Server 2008 EC2 实例上，CloudWatch Agent 服务状态正常，但监控指标一直无法上报到 CloudWatch。日志里反复出现 x509: certificate signed by unknown au...</description>
       <category>AWS</category>
       <category>Windows</category>
       <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
+<figure><img src="/assets/images/posts/aws-cloudwatch-cert-architecture.svg" alt="CloudWatch Agent 证书链修复架构图" tabindex="0" loading="lazy"><figcaption>CloudWatch Agent 证书链修复架构图</figcaption></figure>
 <p>在一台 Windows Server 2008 EC2 实例上，CloudWatch Agent 服务状态正常，但监控指标一直无法上报到 CloudWatch。日志里反复出现 <code>x509: certificate signed by unknown authority</code>，最后定位到旧系统根证书和 TLS 支持不足。</p>
 <!-- more -->
 <h2>现象</h2>
@@ -1568,6 +1571,7 @@
 </ol>
 <p>这类旧系统应尽量纳入迁移计划，长期运行会不断遇到证书、TLS、补丁和软件兼容问题。</p>
 ]]></content:encoded>
+      <enclosure url="https://blog.checo.cc/assets/images/posts/aws-cloudwatch-cert-architecture.svg" type="image/svg+xml"/>
     </item>
     <item>
       <title>足球</title>
@@ -1869,6 +1873,26 @@
       <pubDate>Tue, 11 Feb 2025 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
 ]]></content:encoded>
+    </item>
+    <item>
+      <title>从零训练一个 TinyStories 风格 GPT 小模型</title>
+      <link>https://blog.checo.cc/posts/AI/4.html</link>
+      <guid>https://blog.checo.cc/posts/AI/4.html</guid>
+      <source url="https://blog.checo.cc/rss.xml">从零训练一个 TinyStories 风格 GPT 小模型</source>
+      <description>从零训练 LLM 的简约流程图从零训练 LLM 的简约流程图 这个项目是在 Apple M4 Mac mini 16GB 上，用 MLX 从随机初始化开始训练一个 TinyStories 风格的小型 GPT 模型。它不是调用 API，也不是微调现成模型，而是把数据准备、tokenizer、模型结构、训练循环、checkpoint 和推理生成完整走了一遍...</description>
+      <category>AI</category>
+      <pubDate>Sat, 06 Jun 2026 00:00:00 GMT</pubDate>
+      <content:encoded><![CDATA[
+<figure><img src="/assets/images/posts/llm-from-scratch-hero.png" alt="从零训练 LLM 的简约流程图" tabindex="0" loading="lazy"><figcaption>从零训练 LLM 的简约流程图</figcaption></figure>
+<p>这个项目是在 Apple M4 Mac mini 16GB 上，用 MLX 从随机初始化开始训练一个 TinyStories 风格的小型 GPT 模型。它不是调用 API，也不是微调现成模型，而是把数据准备、tokenizer、模型结构、训练循环、checkpoint 和推理生成完整走了一遍。</p>
+<p>项目地址：<a href="https://github.com/sergioperezcheco/llm-from-scratch" target="_blank" rel="noopener noreferrer">sergioperezcheco/llm-from-scratch</a></p>
+<!-- more -->
+<h2>项目结果</h2>
+<p>最终训练的是一个 44M 参数量的 GPT 模型：</p>
+<p>| 项目 | 结果 |<br>
+|</p>
+]]></content:encoded>
+      <enclosure url="https://blog.checo.cc/assets/images/posts/llm-from-scratch-hero.png" type="image/png"/>
     </item>
     <item>
       <title>通过FOFA寻找三网IP</title>
