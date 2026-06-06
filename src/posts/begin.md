@@ -8,6 +8,7 @@ tag:
   - 说明
   - 记录
 star: true
+sticky: 60
 ---
 
 # 写在后面

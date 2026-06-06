@@ -1,10 +1,16 @@
 import { hopeTheme } from "vuepress-theme-hope";
+import process from "node:process";
 
 import navbar from "./navbar.js";
 import sidebar from "./sidebar.js";
 
+const siteHostname =
+  process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8080"
+    : "https://blog.checo.cc";
+
 export default hopeTheme({
-  hostname: "https://blog.checo.cc",
+  hostname: siteHostname,
 
 /* 全屏按钮 */
 fullscreen: true,
@@ -37,6 +43,7 @@ fullscreen: true,
       Github: "https://github.com/sergioperezcheco",
       Email: "mailto:fddm025@gmail.com",
       Telegram: "https://t.me/iiiiiikun",
+      Rss: "/rss.xml",
       /* Nodeseek: "https://www.nodeseek.com/space/12394", */
       Nodeseek: {
         icon: "https://www.nodeseek.com/static/image/favicon/android-chrome-192x192.png",
@@ -190,6 +197,22 @@ fullscreen: true,
     },
 
     search: true,
+
+    feed: {
+      rss: true,
+      atom: true,
+      json: true,
+      devServer: true,
+      devHostname: "http://127.0.0.1:8080",
+      count: 50,
+      channel: {
+        title: "Checo的博客",
+        link: siteHostname,
+        description: "云计算/运维/网安/前端/交通/摄影",
+        language: "zh-CN",
+        copyright: "© 2025 Checo's Blog. All rights reserved.",
+      },
+    },
 
     // 如果你需要 PWA。安装 @vuepress/plugin-pwa 并取消下方注释
     // pwa: {

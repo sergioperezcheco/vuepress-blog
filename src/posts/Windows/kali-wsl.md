@@ -11,7 +11,6 @@ tag:
   - Kali
 order: 1
 star: true
-sticky: true
 ---
 
 # Windows 10安装Kali WSL
