@@ -6,16 +6,16 @@
     <link>https://blog.checo.cc/</link>
     <description>Checo的博客</description>
     <language>zh-CN</language>
-    <pubDate>Sat, 06 Jun 2026 16:13:01 GMT</pubDate>
-    <lastBuildDate>Sat, 06 Jun 2026 16:13:01 GMT</lastBuildDate>
+    <pubDate>Thu, 11 Jun 2026 09:53:14 GMT</pubDate>
+    <lastBuildDate>Thu, 11 Jun 2026 09:53:14 GMT</lastBuildDate>
     <generator>@vuepress/plugin-feed</generator>
     <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
-    <category>运维</category>
-    <category>数据库</category>
     <category>AWS</category>
     <category>Windows</category>
     <category>安全</category>
     <category>Linux</category>
+    <category>运维</category>
+    <category>数据库</category>
     <category>macOS</category>
     <category>硬件</category>
     <category>工具</category>
@@ -24,175 +24,35 @@
     <category>首页</category>
     <category>AI</category>
     <category>博客</category>
-    <category>白嫖</category>
     <item>
-      <title>1Panel 服务器 Docker 与 new-api 迁移 MySQL 全记录</title>
-      <link>https://blog.checo.cc/posts/DevOps/1.html</link>
-      <guid>https://blog.checo.cc/posts/DevOps/1.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">1Panel 服务器 Docker 与 new-api 迁移 MySQL 全记录</source>
-      <description>这次迁移主要做了两件事：先修复 Debian 12 上 Docker 端口映射失败的问题，再把 new-api 从 SQLite 迁移到 MySQL。过程里踩到的坑不少，尤其是 iptables/nftables 兼容性和 SQLite 到 MySQL 的语法差异。</description>
-      <category>运维</category>
-      <category>数据库</category>
-      <pubDate>Wed, 03 Jun 2026 00:00:00 GMT</pubDate>
+      <title>在 EC2 T4g (Graviton) ARM 实例上 DD 安装 Windows 11 ARM</title>
+      <link>https://blog.checo.cc/posts/AWS/20.html</link>
+      <guid>https://blog.checo.cc/posts/AWS/20.html</guid>
+      <source url="https://blog.checo.cc/rss.xml">在 EC2 T4g (Graviton) ARM 实例上 DD 安装 Windows 11 ARM</source>
+      <description>AWS 不提供 Graviton 架构的 Windows AMI，但这不代表 Graviton 跑不了 Windows。本文记录如何用开源项目 bin456789/reinstall 的一键 DD 脚本，把一台运行 Amazon Linux 2023 的 t4g 实例原地重装成 Windows 11 Pro ARM64。 Windows 11 任务管理...</description>
+      <category>AWS</category>
+      <category>Windows</category>
+      <pubDate>Mon, 08 Jun 2026 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
-<p>这次迁移主要做了两件事：先修复 Debian 12 上 Docker 端口映射失败的问题，再把 new-api 从 SQLite 迁移到 MySQL。过程里踩到的坑不少，尤其是 iptables/nftables 兼容性和 SQLite 到 MySQL 的语法差异。</p>
+<p>AWS 不提供 Graviton 架构的 Windows AMI，但这不代表 Graviton 跑不了 Windows。本文记录如何用开源项目 <a href="https://github.com/bin456789/reinstall" target="_blank" rel="noopener noreferrer">bin456789/reinstall</a> 的一键 DD 脚本，把一台运行 Amazon Linux 2023 的 t4g 实例原地重装成 Windows 11 Pro ARM64。</p>
+<figure><img src="/assets/images/posts/graviton2-win11-taskmanager.jpg" alt="Windows 11 任务管理器显示 AWS Graviton2 处理器" tabindex="0" loading="lazy"><figcaption>Windows 11 任务管理器显示 AWS Graviton2 处理器</figcaption></figure>
 <!-- more -->
-<h2>背景</h2>
-<p>new-api 原本运行在 Docker 中，默认使用 SQLite 数据库。随着日志、用户和渠道数据越来越多，SQLite 数据库体积已经接近 200MB，继续放在容器数据卷里不太适合长期维护。</p>
-<p>我的目标是：</p>
+<h2>为什么 Graviton 跑不了 Windows</h2>
+<p>AWS 官方只提供 x86 架构的 Windows AMI。Graviton 是 ARM64 架构，微软虽然有 Windows on ARM，但 AWS 没有在 Graviton 平台上做官方驱动适配和 AMI 发布。所以正常流程是：选 t3/t3a 这类 x86 实例跑 Windows，Graviton 只能跑 Linux。</p>
+<p>但「不官方支持」不等于「不能跑」。<a href="http://reinstall.sh" target="_blank" rel="noopener noreferrer">reinstall.sh</a> 脚本能在已有的 Linux 实例上直接 DD 安装 Windows，包括 ARM64 版本。测试环境：</p>
 <ul>
-<li>在 1Panel 管理的服务器上启动 MySQL 容器</li>
-<li>把 new-api 的 SQLite 数据完整导入 MySQL</li>
-<li>使用新容器先测试，再切换反向代理流量</li>
-<li>尽量不影响线上服务</li>
+<li>实例类型：<code>t4g.large</code>（2 vCPU / 8 GB）</li>
+<li>原系统：Amazon Linux 2023 aarch64，50 GB EBS（gp3），UEFI 引导</li>
+<li>目标系统：Windows 11 Pro 25H2 ARM64（Build 26200.6584），中文版</li>
 </ul>
-<p>生产迁移里最重要的一点是：不要直接停旧服务。先把新环境跑起来，确认没问题以后再切流量。</p>
-<h2>iptables 与 Docker 端口映射问题</h2>
-<h3>报错现象</h3>
-<p>在 1Panel 安装 MySQL 容器时，容器可以创建成功，但启动阶段失败，错误类似：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables:</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> No</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> chain/target/match</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> by</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> that</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> name.</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>进一步看 Docker 相关日志，可以看到 nftables 后端不兼容的问题：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> v1.8.9</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> (nf_tables): chain </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">`</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">DOCKER' in table `filter'</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> is incompatible, use 'nft' tool.</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><h3>根因</h3>
-<p>Debian 12 bookworm 默认使用 <code>iptables-nft</code>，也就是 nftables 后端。Docker 需要维护自己的 <code>DOCKER</code> 链做端口映射，但当前环境下 filter 表里的链状态和 nft 后端不兼容。</p>
-<p>这个问题有个容易误判的地方：已有容器的端口映射可能仍然正常，因为 NAT 表没有立即受影响；真正失败的是新建容器或新增端口映射。</p>
-<h3>修复方式</h3>
-<p>先备份当前 iptables 规则：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">mkdir</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables-save</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/iptables-all.txt</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div></div></div><p>然后把 iptables 和 ip6tables 切换到 legacy 模式：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/iptables-legacy</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ip6tables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/ip6tables-legacy</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div></div></div><p>最后重启 Docker：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">systemctl</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> restart</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> docker</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果容器设置了 <code>restart: always</code> 或 <code>unless-stopped</code>，Docker 重启后容器会自动恢复。使用 host 网络模式的容器，例如 openresty，一般不受这个端口映射问题影响。</p>
-<h2>SQLite 到 MySQL 的迁移难点</h2>
-<p>new-api 使用 GORM，首次连接 MySQL 时可以自动建表，但这不等于会自动迁移 SQLite 数据。真实迁移还需要把 SQLite dump 转成 MySQL 可导入的 SQL。</p>
-<p>直接转换会遇到几类问题：</p>
-<ol>
-<li>SQLite 允许 <code>TEXT</code> 字段参与主键或索引，MySQL 会报 <code>ERROR 1170</code>。</li>
-<li>SQLite 支持部分索引，例如 <code>WHERE deleted_at IS NULL</code>，MySQL 不能直接照搬。</li>
-<li>SQLite 的 BLOB 字节串可能写成 <code>X'...'</code>，MySQL 的 JSON 列无法直接接受。</li>
-<li>MySQL 不允许 <code>TEXT</code> 或 <code>BLOB</code> 字段设置默认值。</li>
-<li>SQLite 默认大小写敏感，MySQL 默认排序规则通常大小写不敏感，唯一键可能产生冲突。</li>
-</ol>
-<p>所以这一步不能只靠简单的搜索替换，更适合写转换脚本处理结构和数据。</p>
-<h2>转换脚本处理策略</h2>
-<p>我最后使用脚本生成了一份 MySQL 可导入 SQL，主要做了这些处理：</p>
-<ul>
-<li>索引、主键、唯一键涉及的 <code>TEXT</code> 字段改成 <code>VARCHAR(191)</code></li>
-<li>非索引大文本字段改成 <code>LONGTEXT</code></li>
-<li>SQLite 部分索引转换为 MySQL 可接受的表达式索引</li>
-<li>BLOB JSON 字节串转换为 UTF-8 JSON 字符串</li>
-<li>带时区的 SQLite 时间转换为 MySQL <code>DATETIME(6)</code> 字面量</li>
-<li>全部使用 <code>utf8mb4_bin</code> 排序规则，尽量保持 SQLite 的大小写敏感行为</li>
-</ul>
-<p>迁移时不要把真实数据库密码、root 密码和 DSN 明文写进公开文章或仓库。下面命令里的敏感字段都用占位符代替。</p>
-<h2>蓝绿部署流程</h2>
-<p>整体流程是先导入数据，再启动新容器测试，最后切换反向代理。</p>
-<h3>1. 导入 MySQL 数据</h3>
-<p>先创建目标数据库和用户，并授予权限：</p>
-<div class="language-sql line-numbers-mode" data-highlighter="shiki" data-ext="sql" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-sql"><span class="line"><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">CREATE</span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD"> DATABASE</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> `one-api`</span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD"> CHARACTER</span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD"> SET</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> utf8mb4 </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">COLLATE</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> utf8mb4_bin;</span></span>
-<span class="line"><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">CREATE</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> USER </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">'one-api'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">@</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">'%'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> IDENTIFIED </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">BY</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> '&#x3C;mysql-user-password>'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">;</span></span>
-<span class="line"><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">GRANT</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> ALL PRIVILEGES </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">ON</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> `one-api`</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">.* </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">TO</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 'one-api'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">@</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">'%'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">;</span></span>
-<span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">FLUSH PRIVILEGES;</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>然后导入转换后的 SQL：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">mysql</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -u</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> one-api</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> one-api</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> &#x3C; </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/one-api-mysql-importable.sql</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果已经让 new-api 连接过空 MySQL，GORM 可能已经插入默认数据。这种情况下需要先清空默认数据，避免导入时出现主键或唯一键冲突。</p>
-<h3>2. 启动 MySQL 版 new-api 容器</h3>
-<p>新容器先监听 <code>3001</code>，旧容器继续监听 <code>3000</code>：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> run</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -d</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --name</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> new-api-mysql</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  --network</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 1panel-network</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  --restart</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> unless-stopped</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 3001:3000</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> SQL_DSN="one-api:&#x3C;mysql-user-password>@tcp(&#x3C;mysql-host>:3306)/one-api?charset=utf8mb4&#x26;parseTime=True&#x26;loc=Local"</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> TZ=Asia/Shanghai</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ERROR_LOG_ENABLED=</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66">true</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> BATCH_UPDATE_ENABLED=</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66">true</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -v</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /home/ubuntu/data/new-api-mysql:/app/data</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
-<span class="line"><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">  calciumion/new-api:latest</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --log-dir</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /app/logs</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>这里要注意两点：</p>
-<ul>
-<li>new-api 容器必须加入能访问 MySQL 的 Docker 网络</li>
-<li><code>SQL_DSN</code> 里建议带上 <code>charset=utf8mb4&amp;parseTime=True&amp;loc=Local</code></li>
-</ul>
-<h3>3. 测试新容器</h3>
-<p>先用接口确认服务状态：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">curl</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> http://localhost:3001/api/status</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>正常情况下会返回 <code>success: true</code>。然后再检查用户、渠道、配置项、日志等核心表的数据量是否和 SQLite 对得上。</p>
-<p>我这次迁移后的数据量大致如下：</p>
-<p>| 表 | 行数 |<br>
+<h2>核心发现：NVMe 驱动的反直觉坑</h2>
+<p>整个过程最反直觉的一点：<strong>注入 AWS 官方 NVMe 驱动反而导致启动失败，靠微软 inbox StorNVMe 才能正常运行。</strong></p>
+<p><code>StorNVMe.sys</code> 是微软从 Windows 8.1 起就内置在系统镜像里的标准 NVMe 驱动，安装时自动加载，无需任何外部注入或手动操作。<a href="http://reinstall.sh" target="_blank" rel="noopener noreferrer">reinstall.sh</a> 日志中的 <code>Has StorNVMe: true</code> 就是脚本检测到 ISO 自带该 inbox 驱动。</p>
+<p>实测对比：</p>
+<p>| 方案 | NVMe 驱动 | ENA 驱动 | 结果 |<br>
 |</p>
 ]]></content:encoded>
-    </item>
-    <item>
-      <title>Docker iptables 与 nftables 兼容性问题排查</title>
-      <link>https://blog.checo.cc/posts/DevOps/2.html</link>
-      <guid>https://blog.checo.cc/posts/DevOps/2.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">Docker iptables 与 nftables 兼容性问题排查</source>
-      <description>在 Debian 12 服务器上用 1Panel 安装 Docker 应用时，遇到过一个很典型的问题：容器可以创建成功，但启动时端口映射失败。表面看是 Docker 报错，实际原因是 iptables 后端和 Docker 链不兼容。</description>
-      <category>运维</category>
-      <pubDate>Wed, 03 Jun 2026 00:00:00 GMT</pubDate>
-      <content:encoded><![CDATA[
-<p>在 Debian 12 服务器上用 1Panel 安装 Docker 应用时，遇到过一个很典型的问题：容器可以创建成功，但启动时端口映射失败。表面看是 Docker 报错，实际原因是 iptables 后端和 Docker 链不兼容。</p>
-<!-- more -->
-<h2>症状</h2>
-<p>Docker 容器创建完成后，启动阶段报错：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">Error</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> response</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> from</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> daemon:</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> failed</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> to</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> up</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> container</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> networking:</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">driver</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> failed</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> programming</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> external</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> connectivity</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> on</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> endpoint</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ...</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">Unable</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> to</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> enable</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> OPEN</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> PORT</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> rule:</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables:</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> No</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> chain/target/match</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> by</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> that</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> name.</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> (exit </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">status</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> 1</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>这个报错容易误导人。容器本身不是不能创建，而是在 <code>Starting</code> 阶段设置端口映射失败。</p>
-<h2>根因</h2>
-<p>Debian 12 bookworm 默认使用 <code>iptables-nft</code>，也就是 nftables 后端。Docker 会在 iptables 里维护自己的 <code>DOCKER</code> 链，用于 bridge 网络和端口映射。</p>
-<p>当 filter 表中的 <code>DOCKER</code> 链与 nft 后端状态不兼容时，就会出现类似错误：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> v1.8.9</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> (nf_tables): chain </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">`</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">DOCKER' in table `filter'</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> is incompatible, use 'nft' tool.</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>一个关键细节是：NAT 表里的 <code>DOCKER</code> 链可能还是正常的，所以已有端口映射不一定会立刻坏。真正受影响的是新建容器或新增端口映射。</p>
-<h2>快速诊断</h2>
-<p>先看当前 iptables 使用的后端：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --query</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> iptables</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> | </span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">grep</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -E</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 'Status|Value'</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>再检查 filter 表里的 Docker 链：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -L</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> DOCKER</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -n</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果这里出现 <code>incompatible</code> 或链不存在，再看 NAT 表状态：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -t</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> nat</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -L</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> DOCKER</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -n</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>最后确认当前容器和端口映射：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ps</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --format</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果已有容器还在正常运行，但新容器起不来，基本就可以锁定在 Docker 端口映射和 iptables 后端兼容性上。</p>
-<h2>修复步骤</h2>
-<h3>1. 备份现有规则</h3>
-<p>修网络规则前先备份，后面出问题才有回滚依据：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">mkdir</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables-save</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/iptables-all.txt</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables-save</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -t</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> nat</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/iptables-nat.txt</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ps</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --format</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> '{{.Names}} {{.Image}} {{.Status}}'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/containers.txt</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><h3>2. 切换到 legacy 模式</h3>
-<p>把 IPv4 和 IPv6 的 iptables 都切到 legacy：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/iptables-legacy</span></span>
-<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ip6tables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/ip6tables-legacy</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div></div></div><h3>3. 重启 Docker</h3>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">systemctl</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> restart</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> docker</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果容器配置了 <code>restart: always</code> 或 <code>unless-stopped</code>，Docker 重启后会自动拉起。</p>
-<h3>4. 验证</h3>
-<p>检查 <code>DOCKER</code> 链是否能正常显示：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -L</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> DOCKER</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -n</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>确认容器状态：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ps</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>检查关键端口是否监听：</p>
-<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">ss</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -tlnp</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> | </span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">grep</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -E</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ':80 |:443 |:3000 '</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果是 1Panel 里安装失败的应用，这时重新安装或重新启动应用，一般就可以恢复。</p>
-<h2>注意事项</h2>
-<ul>
-<li>host 网络模式的容器通常不受这个问题影响，例如 openresty 直接监听宿主机端口。</li>
-<li>bridge 网络模式的容器依赖 iptables 做端口映射，MySQL、new-api 这类容器会受影响。</li>
-<li>修复前确认重要容器有 restart policy，避免重启 Docker 后服务没有自动恢复。</li>
-<li>如果系统启用了 firewalld，可能还要检查它是否改写了规则。</li>
-<li>生产环境不要直接清空 iptables 规则，先备份再操作。</li>
-</ul>
-<h2>环境记录</h2>
-<p>这次遇到问题的环境大致如下：</p>
-<p>| 项目 | 值 |<br>
-|</p>
-]]></content:encoded>
+      <enclosure url="https://blog.checo.cc/assets/images/posts/graviton2-win11-taskmanager.jpg" type="image/jpeg"/>
     </item>
     <item>
       <title>SSM Patch Manager 扫描 Windows 补丁失败：微软更新服务 503</title>
@@ -1283,6 +1143,175 @@
 ]]></content:encoded>
     </item>
     <item>
+      <title>1Panel 服务器 Docker 与 new-api 迁移 MySQL 全记录</title>
+      <link>https://blog.checo.cc/posts/DevOps/1.html</link>
+      <guid>https://blog.checo.cc/posts/DevOps/1.html</guid>
+      <source url="https://blog.checo.cc/rss.xml">1Panel 服务器 Docker 与 new-api 迁移 MySQL 全记录</source>
+      <description>这次迁移主要做了两件事：先修复 Debian 12 上 Docker 端口映射失败的问题，再把 new-api 从 SQLite 迁移到 MySQL。过程里踩到的坑不少，尤其是 iptables/nftables 兼容性和 SQLite 到 MySQL 的语法差异。</description>
+      <category>运维</category>
+      <category>数据库</category>
+      <pubDate>Wed, 03 Jun 2026 00:00:00 GMT</pubDate>
+      <content:encoded><![CDATA[
+<p>这次迁移主要做了两件事：先修复 Debian 12 上 Docker 端口映射失败的问题，再把 new-api 从 SQLite 迁移到 MySQL。过程里踩到的坑不少，尤其是 iptables/nftables 兼容性和 SQLite 到 MySQL 的语法差异。</p>
+<!-- more -->
+<h2>背景</h2>
+<p>new-api 原本运行在 Docker 中，默认使用 SQLite 数据库。随着日志、用户和渠道数据越来越多，SQLite 数据库体积已经接近 200MB，继续放在容器数据卷里不太适合长期维护。</p>
+<p>我的目标是：</p>
+<ul>
+<li>在 1Panel 管理的服务器上启动 MySQL 容器</li>
+<li>把 new-api 的 SQLite 数据完整导入 MySQL</li>
+<li>使用新容器先测试，再切换反向代理流量</li>
+<li>尽量不影响线上服务</li>
+</ul>
+<p>生产迁移里最重要的一点是：不要直接停旧服务。先把新环境跑起来，确认没问题以后再切流量。</p>
+<h2>iptables 与 Docker 端口映射问题</h2>
+<h3>报错现象</h3>
+<p>在 1Panel 安装 MySQL 容器时，容器可以创建成功，但启动阶段失败，错误类似：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables:</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> No</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> chain/target/match</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> by</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> that</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> name.</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>进一步看 Docker 相关日志，可以看到 nftables 后端不兼容的问题：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> v1.8.9</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> (nf_tables): chain </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">`</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">DOCKER' in table `filter'</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> is incompatible, use 'nft' tool.</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><h3>根因</h3>
+<p>Debian 12 bookworm 默认使用 <code>iptables-nft</code>，也就是 nftables 后端。Docker 需要维护自己的 <code>DOCKER</code> 链做端口映射，但当前环境下 filter 表里的链状态和 nft 后端不兼容。</p>
+<p>这个问题有个容易误判的地方：已有容器的端口映射可能仍然正常，因为 NAT 表没有立即受影响；真正失败的是新建容器或新增端口映射。</p>
+<h3>修复方式</h3>
+<p>先备份当前 iptables 规则：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">mkdir</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables-save</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/iptables-all.txt</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div></div></div><p>然后把 iptables 和 ip6tables 切换到 legacy 模式：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/iptables-legacy</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ip6tables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/ip6tables-legacy</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div></div></div><p>最后重启 Docker：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">systemctl</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> restart</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> docker</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果容器设置了 <code>restart: always</code> 或 <code>unless-stopped</code>，Docker 重启后容器会自动恢复。使用 host 网络模式的容器，例如 openresty，一般不受这个端口映射问题影响。</p>
+<h2>SQLite 到 MySQL 的迁移难点</h2>
+<p>new-api 使用 GORM，首次连接 MySQL 时可以自动建表，但这不等于会自动迁移 SQLite 数据。真实迁移还需要把 SQLite dump 转成 MySQL 可导入的 SQL。</p>
+<p>直接转换会遇到几类问题：</p>
+<ol>
+<li>SQLite 允许 <code>TEXT</code> 字段参与主键或索引，MySQL 会报 <code>ERROR 1170</code>。</li>
+<li>SQLite 支持部分索引，例如 <code>WHERE deleted_at IS NULL</code>，MySQL 不能直接照搬。</li>
+<li>SQLite 的 BLOB 字节串可能写成 <code>X'...'</code>，MySQL 的 JSON 列无法直接接受。</li>
+<li>MySQL 不允许 <code>TEXT</code> 或 <code>BLOB</code> 字段设置默认值。</li>
+<li>SQLite 默认大小写敏感，MySQL 默认排序规则通常大小写不敏感，唯一键可能产生冲突。</li>
+</ol>
+<p>所以这一步不能只靠简单的搜索替换，更适合写转换脚本处理结构和数据。</p>
+<h2>转换脚本处理策略</h2>
+<p>我最后使用脚本生成了一份 MySQL 可导入 SQL，主要做了这些处理：</p>
+<ul>
+<li>索引、主键、唯一键涉及的 <code>TEXT</code> 字段改成 <code>VARCHAR(191)</code></li>
+<li>非索引大文本字段改成 <code>LONGTEXT</code></li>
+<li>SQLite 部分索引转换为 MySQL 可接受的表达式索引</li>
+<li>BLOB JSON 字节串转换为 UTF-8 JSON 字符串</li>
+<li>带时区的 SQLite 时间转换为 MySQL <code>DATETIME(6)</code> 字面量</li>
+<li>全部使用 <code>utf8mb4_bin</code> 排序规则，尽量保持 SQLite 的大小写敏感行为</li>
+</ul>
+<p>迁移时不要把真实数据库密码、root 密码和 DSN 明文写进公开文章或仓库。下面命令里的敏感字段都用占位符代替。</p>
+<h2>蓝绿部署流程</h2>
+<p>整体流程是先导入数据，再启动新容器测试，最后切换反向代理。</p>
+<h3>1. 导入 MySQL 数据</h3>
+<p>先创建目标数据库和用户，并授予权限：</p>
+<div class="language-sql line-numbers-mode" data-highlighter="shiki" data-ext="sql" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-sql"><span class="line"><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">CREATE</span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD"> DATABASE</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> `one-api`</span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD"> CHARACTER</span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD"> SET</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> utf8mb4 </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">COLLATE</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> utf8mb4_bin;</span></span>
+<span class="line"><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">CREATE</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> USER </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">'one-api'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">@</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">'%'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> IDENTIFIED </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">BY</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> '&#x3C;mysql-user-password>'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">;</span></span>
+<span class="line"><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">GRANT</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> ALL PRIVILEGES </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">ON</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> `one-api`</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">.* </span><span style="--shiki-light:#A626A4;--shiki-dark:#C678DD">TO</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 'one-api'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">@</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">'%'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">;</span></span>
+<span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">FLUSH PRIVILEGES;</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>然后导入转换后的 SQL：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">mysql</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -u</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> one-api</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> one-api</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> &#x3C; </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/one-api-mysql-importable.sql</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果已经让 new-api 连接过空 MySQL，GORM 可能已经插入默认数据。这种情况下需要先清空默认数据，避免导入时出现主键或唯一键冲突。</p>
+<h3>2. 启动 MySQL 版 new-api 容器</h3>
+<p>新容器先监听 <code>3001</code>，旧容器继续监听 <code>3000</code>：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> run</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -d</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --name</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> new-api-mysql</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  --network</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 1panel-network</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  --restart</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> unless-stopped</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 3001:3000</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> SQL_DSN="one-api:&#x3C;mysql-user-password>@tcp(&#x3C;mysql-host>:3306)/one-api?charset=utf8mb4&#x26;parseTime=True&#x26;loc=Local"</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> TZ=Asia/Shanghai</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ERROR_LOG_ENABLED=</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66">true</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> BATCH_UPDATE_ENABLED=</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66">true</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#986801;--shiki-dark:#D19A66">  -v</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /home/ubuntu/data/new-api-mysql:/app/data</span><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2"> \</span></span>
+<span class="line"><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">  calciumion/new-api:latest</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --log-dir</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /app/logs</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>这里要注意两点：</p>
+<ul>
+<li>new-api 容器必须加入能访问 MySQL 的 Docker 网络</li>
+<li><code>SQL_DSN</code> 里建议带上 <code>charset=utf8mb4&amp;parseTime=True&amp;loc=Local</code></li>
+</ul>
+<h3>3. 测试新容器</h3>
+<p>先用接口确认服务状态：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">curl</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> http://localhost:3001/api/status</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>正常情况下会返回 <code>success: true</code>。然后再检查用户、渠道、配置项、日志等核心表的数据量是否和 SQLite 对得上。</p>
+<p>我这次迁移后的数据量大致如下：</p>
+<p>| 表 | 行数 |<br>
+|</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Docker iptables 与 nftables 兼容性问题排查</title>
+      <link>https://blog.checo.cc/posts/DevOps/2.html</link>
+      <guid>https://blog.checo.cc/posts/DevOps/2.html</guid>
+      <source url="https://blog.checo.cc/rss.xml">Docker iptables 与 nftables 兼容性问题排查</source>
+      <description>在 Debian 12 服务器上用 1Panel 安装 Docker 应用时，遇到过一个很典型的问题：容器可以创建成功，但启动时端口映射失败。表面看是 Docker 报错，实际原因是 iptables 后端和 Docker 链不兼容。</description>
+      <category>运维</category>
+      <pubDate>Wed, 03 Jun 2026 00:00:00 GMT</pubDate>
+      <content:encoded><![CDATA[
+<p>在 Debian 12 服务器上用 1Panel 安装 Docker 应用时，遇到过一个很典型的问题：容器可以创建成功，但启动时端口映射失败。表面看是 Docker 报错，实际原因是 iptables 后端和 Docker 链不兼容。</p>
+<!-- more -->
+<h2>症状</h2>
+<p>Docker 容器创建完成后，启动阶段报错：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">Error</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> response</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> from</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> daemon:</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> failed</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> to</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> up</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> container</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> networking:</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">driver</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> failed</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> programming</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> external</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> connectivity</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> on</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> endpoint</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ...</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">Unable</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> to</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> enable</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> OPEN</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> PORT</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> rule:</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables:</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> No</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> chain/target/match</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> by</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> that</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> name.</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> (exit </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">status</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> 1</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>这个报错容易误导人。容器本身不是不能创建，而是在 <code>Starting</code> 阶段设置端口映射失败。</p>
+<h2>根因</h2>
+<p>Debian 12 bookworm 默认使用 <code>iptables-nft</code>，也就是 nftables 后端。Docker 会在 iptables 里维护自己的 <code>DOCKER</code> 链，用于 bridge 网络和端口映射。</p>
+<p>当 filter 表中的 <code>DOCKER</code> 链与 nft 后端状态不兼容时，就会出现类似错误：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> v1.8.9</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> (nf_tables): chain </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">`</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">DOCKER' in table `filter'</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> is incompatible, use 'nft' tool.</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>一个关键细节是：NAT 表里的 <code>DOCKER</code> 链可能还是正常的，所以已有端口映射不一定会立刻坏。真正受影响的是新建容器或新增端口映射。</p>
+<h2>快速诊断</h2>
+<p>先看当前 iptables 使用的后端：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --query</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> iptables</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> | </span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">grep</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -E</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 'Status|Value'</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>再检查 filter 表里的 Docker 链：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -L</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> DOCKER</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -n</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果这里出现 <code>incompatible</code> 或链不存在，再看 NAT 表状态：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -t</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> nat</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -L</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> DOCKER</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -n</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>最后确认当前容器和端口映射：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ps</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --format</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果已有容器还在正常运行，但新容器起不来，基本就可以锁定在 Docker 端口映射和 iptables 后端兼容性上。</p>
+<h2>修复步骤</h2>
+<h3>1. 备份现有规则</h3>
+<p>修网络规则前先备份，后面出问题才有回滚依据：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">mkdir</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -p</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables-save</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/iptables-all.txt</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables-save</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -t</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> nat</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/iptables-nat.txt</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ps</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --format</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> '{{.Names}} {{.Image}} {{.Status}}'</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/root/backup-iptables-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">$(</span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">date</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> +%Y%m%d</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">)</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/containers.txt</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><h3>2. 切换到 legacy 模式</h3>
+<p>把 IPv4 和 IPv6 的 iptables 都切到 legacy：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> iptables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/iptables-legacy</span></span>
+<span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">update-alternatives</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> --set</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ip6tables</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> /usr/sbin/ip6tables-legacy</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div><div class="line-number"></div></div></div><h3>3. 重启 Docker</h3>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">systemctl</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> restart</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> docker</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果容器配置了 <code>restart: always</code> 或 <code>unless-stopped</code>，Docker 重启后会自动拉起。</p>
+<h3>4. 验证</h3>
+<p>检查 <code>DOCKER</code> 链是否能正常显示：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">iptables</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -L</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> DOCKER</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -n</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>确认容器状态：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">docker</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ps</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>检查关键端口是否监听：</p>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">ss</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -tlnp</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> | </span><span style="--shiki-light:#4078F2;--shiki-dark:#61AFEF">grep</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -E</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> ':80 |:443 |:3000 '</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>如果是 1Panel 里安装失败的应用，这时重新安装或重新启动应用，一般就可以恢复。</p>
+<h2>注意事项</h2>
+<ul>
+<li>host 网络模式的容器通常不受这个问题影响，例如 openresty 直接监听宿主机端口。</li>
+<li>bridge 网络模式的容器依赖 iptables 做端口映射，MySQL、new-api 这类容器会受影响。</li>
+<li>修复前确认重要容器有 restart policy，避免重启 Docker 后服务没有自动恢复。</li>
+<li>如果系统启用了 firewalld，可能还要检查它是否改写了规则。</li>
+<li>生产环境不要直接清空 iptables 规则，先备份再操作。</li>
+</ul>
+<h2>环境记录</h2>
+<p>这次遇到问题的环境大致如下：</p>
+<p>| 项目 | 值 |<br>
+|</p>
+]]></content:encoded>
+    </item>
+    <item>
       <title>Mac mini M4 硬件深度检测指南</title>
       <link>https://blog.checo.cc/posts/Mac/1.html</link>
       <guid>https://blog.checo.cc/posts/Mac/1.html</guid>
@@ -1441,77 +1470,78 @@
       <enclosure url="https://blog.checo.cc/assets/images/vscode/vscode-generic-icon.png" type="image/png"/>
     </item>
     <item>
-      <title>Windows 10安装Kali WSL</title>
+      <title>Windows 10 安装 Kali WSL</title>
       <link>https://blog.checo.cc/posts/Windows/kali-wsl.html</link>
       <guid>https://blog.checo.cc/posts/Windows/kali-wsl.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">Windows 10安装Kali WSL</source>
-      <description>Windows 10安装Kali WSL 众所周知，Kali有很多自带的渗透测试工具。今天心血来潮想要在WSL中安装一个并且迁移到E盘，避免占用所剩无几的C盘空间 准备工作 Windows系统需要开启WSL 如果之前有装过WSL，默认是Ubuntu，可以使用以下命令进行卸载 操作步骤 安装Kali，并根据提示创建用户密码，进入系统 打包当前的Kali系...</description>
+      <source url="https://blog.checo.cc/rss.xml">Windows 10 安装 Kali WSL</source>
+      <description>Kali 自带很多安全测试工具，如果不想占用 C 盘空间，可以把 WSL 发行版迁移到 E 盘。本文记录安装 Kali WSL、导出备份、重新导入到指定目录，以及设置默认登录用户的过程。</description>
       <category>Windows</category>
       <category>Linux</category>
       <pubDate>Thu, 11 Dec 2025 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
-<p>众所周知，Kali有很多自带的渗透测试工具。今天心血来潮想要在WSL中安装一个并且迁移到E盘，避免占用所剩无几的C盘空间</p>
+<p>Kali 自带很多安全测试工具，如果不想占用 C 盘空间，可以把 WSL 发行版迁移到 E 盘。本文记录安装 Kali WSL、导出备份、重新导入到指定目录，以及设置默认登录用户的过程。</p>
+<!-- more -->
 <h2>准备工作</h2>
-<p>Windows系统需要开启WSL</p>
-<p>如果之前有装过WSL，默认是Ubuntu，可以使用以下命令进行卸载</p>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl --unregister kali-linux</span></span></code></pre>
+<p>Windows 系统需要先开启 WSL。</p>
+<p>如果之前装过 Kali WSL，可以使用以下命令卸载旧实例：</p>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">--</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">unregister kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux</span></span></code></pre>
 <div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><h2>操作步骤</h2>
 <ol>
-<li>安装Kali，并根据提示创建用户密码，进入系统</li>
+<li>安装 Kali，并根据提示创建用户密码，进入系统。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl --install -d kali-linux</span></span></code></pre>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">--</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">install </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">d kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux</span></span></code></pre>
 <div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><figure><img src="https://picgo.checo.cc/20251211022031.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
 <ol start="2">
-<li>打包当前的Kali系统，暂存至中间位置</li>
+<li>打包当前 Kali 系统，暂存到中间位置。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl --export kali-linux D:\kali-backup.tar</span></span></code></pre>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">--</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">export kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux D:\kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">backup.tar</span></span></code></pre>
 <div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><figure><img src="https://picgo.checo.cc/20251211022321.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
 <ol start="3">
-<li>删除当前Kali系统</li>
+<li>删除当前 Kali 系统。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl --unregister kali-linux</span></span></code></pre>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">--</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">unregister kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux</span></span></code></pre>
 <div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><figure><img src="https://picgo.checo.cc/20251211022909.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
 <ol start="4">
-<li>使用第二部打的包在E盘中启动新的Kali系统</li>
+<li>使用第 2 步导出的包，在 E 盘导入新的 Kali 系统。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl --import kali-linux E:\WSL\Kali D:\kali-backup.tar</span></span></code></pre>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">--</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">import kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux E:\WSL\Kali D:\kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">backup.tar</span></span></code></pre>
 <div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><figure><img src="https://picgo.checo.cc/20251211022548.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
 <ol start="5">
-<li>登录Kali系统</li>
+<li>登录 Kali 系统。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl -d kali-linux</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>会默认以root身份登录<br>
-<img src="https://picgo.checo.cc/20251215005129.png" alt loading="lazy"></p>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">d kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p>此时会默认以 root 身份登录。</p>
+<figure><img src="https://picgo.checo.cc/20251215005129.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
 <ol start="6">
-<li>创建文件告诉WSL默认用checo用户登录</li>
+<li>创建配置文件，指定 WSL 默认使用 <code>checo</code> 用户登录。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>echo -e "[user]\ndefault=checo" > /etc/wsl.conf</span></span></code></pre>
+<div class="language-bash line-numbers-mode" data-highlighter="shiki" data-ext="bash" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-bash"><span class="line"><span style="--shiki-light:#0184BC;--shiki-dark:#56B6C2">echo</span><span style="--shiki-light:#986801;--shiki-dark:#D19A66"> -e</span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379"> "[user]\ndefault=checo"</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF"> > </span><span style="--shiki-light:#50A14F;--shiki-dark:#98C379">/etc/wsl.conf</span></span></code></pre>
 <div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><figure><img src="https://picgo.checo.cc/20251215005258.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
 <ol start="7">
-<li>退出并重启WSL</li>
+<li>退出并重启 WSL。</li>
 </ol>
-<div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl --terminate kali-linux</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><div class="language- line-numbers-mode" data-highlighter="shiki" data-ext style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-"><span class="line"><span>wsl -d kali-linux</span></span></code></pre>
-<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><p><img src="https://picgo.checo.cc/20251215005514.png" alt loading="lazy"><br>
-进来后的提示符变成了 $，且用户名是 checo</p>
+<div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">--</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">terminate kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><div class="language-powershell line-numbers-mode" data-highlighter="shiki" data-ext="powershell" style="--shiki-light:#383A42;--shiki-dark:#abb2bf;--shiki-light-bg:#FAFAFA;--shiki-dark-bg:#282c34"><pre class="shiki shiki-themes one-light one-dark-pro vp-code"><code class="language-powershell"><span class="line"><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">wsl </span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">d kali</span><span style="--shiki-light:#383A42;--shiki-dark:#56B6C2">-</span><span style="--shiki-light:#383A42;--shiki-dark:#ABB2BF">linux</span></span></code></pre>
+<div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0"><div class="line-number"></div></div></div><figure><img src="https://picgo.checo.cc/20251215005514.png" alt tabindex="0" loading="lazy"><figcaption></figcaption></figure>
+<p>重新进入后，提示符变成 <code>$</code>，用户名也变成 <code>checo</code>。</p>
 <h2>总结</h2>
-<p>之后可以出一期教程，研究如何使用Kali</p>
+<p>这样可以把 Kali WSL 放到非系统盘，减少 C 盘占用。后续如果继续写，可以再补一篇 Kali 常用工具和 WSL 网络配置。</p>
 ]]></content:encoded>
       <enclosure url="https://picgo.checo.cc/20251211022031.png" type="image/png"/>
     </item>
     <item>
-      <title>AWS 启动Windows11 EC2</title>
+      <title>AWS 启动 Windows 11 EC2</title>
       <link>https://blog.checo.cc/posts/AWS/2.html</link>
       <guid>https://blog.checo.cc/posts/AWS/2.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">AWS 启动Windows11 EC2</source>
-      <description>AWS 启动Windows11 EC2 众所周知，AWS中国区并没有提供Windows11的AMI，VMimport也比较麻烦 可以直接使用一个开源的reinstall脚本从Linux安装Windows 项目地址：https://github.com/bin456789/reinstall 参考文档：https://lpwmm.blog.csdn.ne...</description>
+      <source url="https://blog.checo.cc/rss.xml">AWS 启动 Windows 11 EC2</source>
+      <description>AWS 中国区没有直接提供 Windows 11 AMI，VM Import/Export 也需要额外准备镜像和导入流程。一个折中方式是先启动 Linux EC2，再通过开源 reinstall 脚本把系统重装成 Windows。 项目地址：bin456789/reinstall 参考文档：CSDN 原文</description>
       <category>AWS</category>
       <pubDate>Wed, 03 Dec 2025 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
-<p>众所周知，AWS中国区并没有提供Windows11的AMI，VMimport也比较麻烦<br>
-可以直接使用一个开源的reinstall脚本从Linux安装Windows<br>
-项目地址：<a href="https://github.com/bin456789/reinstall" target="_blank" rel="noopener noreferrer">https://github.com/bin456789/reinstall</a><br>
-参考文档：<a href="https://lpwmm.blog.csdn.net/article/details/155258680?spm=1001.2014.3001.5502" target="_blank" rel="noopener noreferrer">https://lpwmm.blog.csdn.net/article/details/155258680?spm=1001.2014.3001.5502</a></p>
+<p>AWS 中国区没有直接提供 Windows 11 AMI，VM Import/Export 也需要额外准备镜像和导入流程。一个折中方式是先启动 Linux EC2，再通过开源 reinstall 脚本把系统重装成 Windows。</p>
+<p>项目地址：<a href="https://github.com/bin456789/reinstall" target="_blank" rel="noopener noreferrer">bin456789/reinstall</a></p>
+<p>参考文档：<a href="https://lpwmm.blog.csdn.net/article/details/155258680?spm=1001.2014.3001.5502" target="_blank" rel="noopener noreferrer">CSDN 原文</a></p>
+<!-- more -->
 <h2>操作步骤</h2>
 ]]></content:encoded>
     </item>
@@ -1650,15 +1680,17 @@
       <enclosure url="https://picgo.checo.cc/DSC_0180.jpg" type="image/jpeg"/>
     </item>
     <item>
-      <title>Linux常用脚本合集</title>
+      <title>Linux 常用脚本合集</title>
       <link>https://blog.checo.cc/posts/VPS/1.html</link>
       <guid>https://blog.checo.cc/posts/VPS/1.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">Linux常用脚本合集</source>
-      <description>Linux常用脚本合集 网络相关 测评相关</description>
+      <source url="https://blog.checo.cc/rss.xml">Linux 常用脚本合集</source>
+      <description>这篇文章目前只是脚本索引占位，后续适合按用途整理成可直接复制执行的命令清单，并补充适用系统、风险说明和回滚方式。</description>
       <category>VPS</category>
       <category>Linux</category>
       <pubDate>Mon, 20 May 2024 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
+<p>这篇文章目前只是脚本索引占位，后续适合按用途整理成可直接复制执行的命令清单，并补充适用系统、风险说明和回滚方式。</p>
+<!-- more -->
 <h2>网络相关</h2>
 <h2>测评相关</h2>
 ]]></content:encoded>
@@ -1847,31 +1879,33 @@
       <enclosure url="https://picgo.checo.cc/DSC_0180.jpg" type="image/jpeg"/>
     </item>
     <item>
-      <title>通过硅基流动使用DeepSeek-R1</title>
+      <title>通过硅基流动使用 DeepSeek-R1</title>
       <link>https://blog.checo.cc/posts/AI/2.html</link>
       <guid>https://blog.checo.cc/posts/AI/2.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">通过硅基流动使用DeepSeek-R1</source>
-      <description>通过硅基流动使用DeepSeek-R1 下载安装Cherry Studio 这里是内容。 注册硅基流动账号 点击注册 获取API key</description>
+      <source url="https://blog.checo.cc/rss.xml">通过硅基流动使用 DeepSeek-R1</source>
+      <description>硅基流动提供了 DeepSeek-R1 等模型的 API 服务，可以配合 Cherry Studio 这类客户端使用。本文记录账号注册、API Key 获取和客户端配置流程。</description>
       <category>AI</category>
       <pubDate>Sun, 09 Feb 2025 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
-<h2>下载安装Cherry Studio</h2>
-<p>这里是内容。</p>
+<p>硅基流动提供了 DeepSeek-R1 等模型的 API 服务，可以配合 Cherry Studio 这类客户端使用。本文记录账号注册、API Key 获取和客户端配置流程。</p>
+<!-- more -->
+<h2>下载安装 Cherry Studio</h2>
+<p>这一部分后续补充具体下载安装步骤。</p>
 <h2>注册硅基流动账号</h2>
 <p><a href="https://cloud.siliconflow.cn/i/YCwowtrD" target="_blank" rel="noopener noreferrer">点击注册</a></p>
-<h2>获取API key</h2>
+<h2>获取 API Key</h2>
 ]]></content:encoded>
     </item>
     <item>
-      <title>通过FOFA白嫖DeepSeek</title>
+      <title>通过 FOFA 查找公开 DeepSeek 服务</title>
       <link>https://blog.checo.cc/posts/AI/3.html</link>
       <guid>https://blog.checo.cc/posts/AI/3.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">通过FOFA白嫖DeepSeek</source>
-      <description>通过FOFA白嫖DeepSeek</description>
+      <source url="https://blog.checo.cc/rss.xml">通过 FOFA 查找公开 DeepSeek 服务</source>
+      <description>通过 FOFA 查找公开 DeepSeek 服务 这篇文章目前还没有补完整。后续如果继续写，建议重点说明风险边界、合法性和只读验证方式，避免把它写成滥用公开服务的教程。</description>
       <category>AI</category>
-      <category>白嫖</category>
       <pubDate>Tue, 11 Feb 2025 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
+<p>这篇文章目前还没有补完整。后续如果继续写，建议重点说明风险边界、合法性和只读验证方式，避免把它写成滥用公开服务的教程。</p>
 ]]></content:encoded>
     </item>
     <item>
@@ -1885,6 +1919,7 @@
       <content:encoded><![CDATA[
 <figure><img src="/assets/images/posts/llm-from-scratch-hero.png" alt="从零训练 LLM 的简约流程图" tabindex="0" loading="lazy"><figcaption>从零训练 LLM 的简约流程图</figcaption></figure>
 <p>这个项目是在 Apple M4 Mac mini 16GB 上，用 MLX 从随机初始化开始训练一个 TinyStories 风格的小型 GPT 模型。它不是调用 API，也不是微调现成模型，而是把数据准备、tokenizer、模型结构、训练循环、checkpoint 和推理生成完整走了一遍。</p>
+<p>这篇记录更偏工程复盘：重点不是训练出一个能聊天的模型，而是验证个人机器能不能完整跑通一次小规模 LLM 训练。</p>
 <p>项目地址：<a href="https://github.com/sergioperezcheco/llm-from-scratch" target="_blank" rel="noopener noreferrer">sergioperezcheco/llm-from-scratch</a></p>
 <!-- more -->
 <h2>项目结果</h2>
@@ -1895,14 +1930,15 @@
       <enclosure url="https://blog.checo.cc/assets/images/posts/llm-from-scratch-hero.png" type="image/png"/>
     </item>
     <item>
-      <title>通过FOFA寻找三网IP</title>
+      <title>通过 FOFA 寻找三网 IP</title>
       <link>https://blog.checo.cc/posts/VPS/2.html</link>
       <guid>https://blog.checo.cc/posts/VPS/2.html</guid>
-      <source url="https://blog.checo.cc/rss.xml">通过FOFA寻找三网IP</source>
-      <description>哪吒探针的三网延迟功能非常好用，我们可以通过FOFA这一网络空间测绘工具寻找我们需要的三网IP</description>
+      <source url="https://blog.checo.cc/rss.xml">通过 FOFA 寻找三网 IP</source>
+      <description>哪吒探针的三网延迟功能很适合观察不同运营商线路质量。可以通过 FOFA 这类网络空间测绘工具查找目标 IP，再结合实际连通性测试筛选可用节点。</description>
+      <category>VPS</category>
       <pubDate>Thu, 06 Jan 2022 00:00:00 GMT</pubDate>
       <content:encoded><![CDATA[
-<p>哪吒探针的三网延迟功能非常好用，我们可以通过FOFA这一网络空间测绘工具寻找我们需要的三网IP</p>
+<p>哪吒探针的三网延迟功能很适合观察不同运营商线路质量。可以通过 FOFA 这类网络空间测绘工具查找目标 IP，再结合实际连通性测试筛选可用节点。</p>
 <!-- more -->
 ]]></content:encoded>
     </item>
