@@ -11,27 +11,27 @@ tagline: 分享技术，记录生活
 projects:
   - icon: house
     name: 个人主页
-    desc: 个人主页
+    desc: 关于我和常用链接
     link: https://home.checo.cc
 
   - icon: bed
     name: 免费图床
-    desc: 基于Telegram的开源图床
+    desc: 基于 Telegram 的开源图床
     link: https://img.checo.cc
 
   - icon: star
     name: 星标文章
-    desc: 博客星标文章
+    desc: 值得优先阅读的技术记录
     link: https://blog.checo.cc/star/
 
   - icon: image
     name: 随机图片
-    desc: 生成随机图片URL
+    desc: 生成随机图片 URL
     link: https://random.checo.cc
 
 
 
-footer: © 2025 Checo's Blog. All rights reserved.
+footer: © 2026 Checo's Blog. All rights reserved.
 ---
 
 <!--

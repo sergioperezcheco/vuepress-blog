@@ -12,8 +12,8 @@ const siteHostname =
 export default hopeTheme({
   hostname: siteHostname,
 
-/* 全屏按钮 */
-fullscreen: true,
+  /* 全屏按钮 */
+  fullscreen: true,
 
   author: {
     name: "Checo",
@@ -32,7 +32,7 @@ fullscreen: true,
   sidebar,
 
   // 页脚
-  footer: "© 2025 Checo's Blog. All rights reserved.",
+  footer: "© 2026 Checo's Blog. All rights reserved.",
   displayFooter: true,
 
   // 博客相关
@@ -84,16 +84,6 @@ fullscreen: true,
         icon: "https://theme-hope-assets.vuejs.press/logo.svg",
         link: "https://theme-hope.vuejs.press",
       }, */
-    },
-  },
-
-  // 加密配置
-  encrypt: {
-    config: {
-      "/demo/encrypt.html": {
-        hint: "Password: 1234",
-        password: "1234",
-      },
     },
   },
 
@@ -210,7 +200,7 @@ fullscreen: true,
         link: siteHostname,
         description: "云计算/运维/网安/前端/交通/摄影",
         language: "zh-CN",
-        copyright: "© 2025 Checo's Blog. All rights reserved.",
+        copyright: "© 2026 Checo's Blog. All rights reserved.",
       },
     },
 

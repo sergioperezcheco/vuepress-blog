@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__youtube-transcript__get-transcript",
+      "Read(//Users/checo/**)",
+      "mcp__youtube-dlp__get_available_subtitles",
+      "mcp__youtube-dlp__get_subtitles",
+      "WebFetch(domain:github.com)",
+      "Read(//private/tmp/**)",
+      "Bash(youtube-dl --get-title --get-description --no-warnings \"https://www.youtube.com/watch?v=9Zwpc6W1ihY\")",
+      "Bash(yt-dlp --get-title --get-description \"https://www.youtube.com/watch?v=9Zwpc6W1ihY\")",
+      "WebFetch(domain:yewtu.be)",
+      "WebFetch(domain:invidious.snopyta.org)",
+      "WebFetch(domain:redirect.invidious.io)"
+    ]
+  }
+}
