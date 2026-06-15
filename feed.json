@@ -1,9 +1,9 @@
 {
   "version": "https://jsonfeed.org/version/1.1",
   "title": "Checo的博客",
-  "home_page_url": "https://blog.checo.cc/",
+  "home_page_url": "https://blog.checo.cc",
   "feed_url": "https://blog.checo.cc/feed.json",
-  "description": "Checo的博客",
+  "description": "云计算/运维/网安/前端/交通/摄影",
   "items": [
     {
       "title": "在 EC2 T4g (Graviton) ARM 实例上 DD 安装 Windows 11 ARM",

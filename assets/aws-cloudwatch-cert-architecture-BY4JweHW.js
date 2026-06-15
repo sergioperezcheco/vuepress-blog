@@ -1,0 +1,1 @@
+var e=`/assets/images/posts/aws-cloudwatch-cert-architecture.svg`;export{e as t};

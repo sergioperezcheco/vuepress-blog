@@ -1,0 +1,1 @@
+var e=`/assets/images/posts/graviton2-win11-taskmanager.jpg`,t=`/assets/images/posts/graviton2-win11-desktop.jpg`;export{e as n,t};

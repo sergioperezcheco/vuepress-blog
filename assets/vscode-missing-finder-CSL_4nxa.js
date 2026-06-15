@@ -1,0 +1,1 @@
+var e=`/assets/images/vscode/vscode-generic-icon.png`,t=`/assets/images/vscode/vscode-missing-finder.png`;export{e as n,t};

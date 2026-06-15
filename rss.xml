@@ -3,13 +3,14 @@
   <channel>
     <atom:link href="https://blog.checo.cc/rss.xml" rel="self" type="application/rss+xml"/>
     <title>Checo的博客</title>
-    <link>https://blog.checo.cc/</link>
-    <description>Checo的博客</description>
+    <link>https://blog.checo.cc</link>
+    <description>云计算/运维/网安/前端/交通/摄影</description>
     <language>zh-CN</language>
-    <pubDate>Thu, 11 Jun 2026 09:53:14 GMT</pubDate>
-    <lastBuildDate>Thu, 11 Jun 2026 09:53:14 GMT</lastBuildDate>
+    <pubDate>Mon, 15 Jun 2026 12:29:33 GMT</pubDate>
+    <lastBuildDate>Mon, 15 Jun 2026 12:29:33 GMT</lastBuildDate>
     <generator>@vuepress/plugin-feed</generator>
     <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+    <copyright>© 2026 Checo&amp;apos;s Blog. All rights reserved.</copyright>
     <category>AWS</category>
     <category>Windows</category>
     <category>安全</category>

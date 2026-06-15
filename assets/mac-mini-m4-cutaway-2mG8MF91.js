@@ -1,0 +1,1 @@
+var e=`/assets/images/posts/mac-mini-m4-cutaway.png`;export{e as t};
