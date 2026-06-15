@@ -5,9 +5,18 @@ import theme from "./theme.js";
 export default defineUserConfig({
   base: "/",
 
-  lang: "zh-CN",
-  title: "Checo的博客",
-  description: "Checo的博客",
+  locales: {
+    "/": {
+      lang: "zh-CN",
+      title: "Checo的博客",
+      description: "Checo的博客",
+    },
+    "/en/": {
+      lang: "en-US",
+      title: "Checo's Blog",
+      description: "Checo's Blog",
+    },
+  },
 
   head: [
     ["link", { rel: "icon", href: "/favicon.ico" }],
