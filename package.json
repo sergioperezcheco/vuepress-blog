@@ -20,5 +20,8 @@
     "vue": "3.5.35",
     "vuepress": "2.0.0-rc.30",
     "vuepress-theme-hope": "2.0.0-rc.107"
+  },
+  "dependencies": {
+    "@vuepress/plugin-slimsearch": "^2.0.0-rc.130"
   }
 }

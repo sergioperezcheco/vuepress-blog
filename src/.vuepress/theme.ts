@@ -302,12 +302,29 @@ export default hopeTheme({
     },
 
     icon: {
-      prefix: "fa6-solid:",
-    },
+     prefix: "fa6-solid:",
+   },
 
-    search: true,
-
-    feed: {
+ slimsearch: {
+   indexContent: false,
+   customFields: [
+      {
+        getter: (page) => page.frontmatter.category,
+        formatter: {
+          "/": "分类: $content",
+          "/en/": "Category: $content",
+        },
+      },
+      {
+        getter: (page) => page.frontmatter.tag,
+        formatter: {
+          "/": "标签: $content",
+          "/en/": "Tag: $content",
+        },
+      },
+    ],
+  },
+  feed: {
       rss: true,
       atom: true,
       json: true,

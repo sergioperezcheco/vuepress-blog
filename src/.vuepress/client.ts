@@ -92,6 +92,19 @@ export default defineClientConfig({
   enhance({ app }) {
     app.component("VisitorCounter", VisitorCounter);
   },
+  setup() {
+    // 输入法（如拼音）组合期间，阻止 Enter / 方向键等触发搜索导航或表单提交，
+    // 这样用拼音输入 "aws" 后直接回车是把字母作为原文提交，而不是跳转到第一条结果。
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.isComposing || event.keyCode === 229) {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+        }
+      },
+      true,
+    );
+  },
   rootComponents: [VisitorCounterInjector],
 });
-
