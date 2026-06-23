@@ -93,18 +93,22 @@ export default defineClientConfig({
     app.component("VisitorCounter", VisitorCounter);
   },
   setup() {
-    // 输入法（如拼音）组合期间，阻止 Enter / 方向键等触发搜索导航或表单提交，
-    // 这样用拼音输入 "aws" 后直接回车是把字母作为原文提交，而不是跳转到第一条结果。
-    window.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.isComposing || event.keyCode === 229) {
-          event.stopPropagation();
-          event.stopImmediatePropagation();
-        }
-      },
-      true,
-    );
+    // 仅在浏览器端注册；VuePress 在 SSR 构建期间也会执行 client setup，
+    // 此时不访问 window，否则抛出 ReferenceError: window is not defined。
+    onMounted(() => {
+      // 输入法（如拼音）组合期间，阻止 Enter / 方向键等触发搜索导航或表单提交，
+      // 这样用拼音输入 "aws" 后直接回车是把字母作为原文提交，而不是跳转到第一条结果。
+      window.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.isComposing || event.keyCode === 229) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+          }
+        },
+        true,
+      );
+    });
   },
   rootComponents: [VisitorCounterInjector],
 });
